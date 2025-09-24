@@ -56,7 +56,6 @@ add_value_labels(bars3)
 plt.tight_layout()
 plt.savefig('commuting_frequency_plot.png', dpi=300, bbox_inches='tight')
 plt.show()
-print("✅ Saved: commuting_frequency_plot.png")
 
 
 # ========================================================================================================================
@@ -112,7 +111,6 @@ for bars in (b1, b2, b3, b4):
 plt.tight_layout()
 plt.savefig('commuting_modes_updated_plot.png', dpi=300, bbox_inches='tight')
 plt.show()
-print("✅ Saved: commuting_modes_updated_plot.png")
 
 # ========================================================================================================================
 # STEP 3: Mean Weekly Commuting Days by Mode & Season
