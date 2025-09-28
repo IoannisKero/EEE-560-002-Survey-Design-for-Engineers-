@@ -16,7 +16,6 @@ data = {
     'Summer (%)': [18.18, 27.27, 27.27, 27.27, 0]
 }
 
-import pandas as pd, numpy as np, matplotlib.pyplot as plt
 df = pd.DataFrame(data)
 
 fig, ax = plt.subplots(figsize=(12, 8))
@@ -117,6 +116,9 @@ plt.show()
 # STEP 3: Mean Weekly Commuting Days by Mode & Season
 # ========================================================================================================================
 
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 
 data = {
     "Walking": {
@@ -141,22 +143,26 @@ data = {
     }
 }
 
-# Calculate mean values for each mode in each semester
+# Calculate mean values and standard deviations for each mode in each semester
 semesters = ['Fall', 'Spring', 'Summer']
 modes = ['Walking', 'Bike', 'Bus', 'Car']
 
-# Create a matrix to store mean values
+# Create matrices to store mean values and standard deviations
 mean_data = {}
+std_data = {}
 for semester in semesters:
     mean_data[semester] = {}
+    std_data[semester] = {}
     for mode in modes:
         mean_data[semester][mode] = np.mean(data[mode][semester])
+        std_data[semester][mode] = np.std(data[mode][semester])
 
-# Convert to DataFrame for easier plotting
+# Convert to DataFrames for easier plotting
 df_means = pd.DataFrame(mean_data)
+df_stds = pd.DataFrame(std_data)
 
-print("Mean commuting days per week by mode and semester:")
-print(df_means.round(2))
+
+walking_fall_data = data['Walking']['Fall']
 
 # =======================
 # Create the plot
@@ -170,11 +176,26 @@ colors = ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D']
 x = np.arange(len(semesters))  # Fall, Spring, Summer
 width = 0.2
 
-# Plot bars
-bars1 = ax.bar(x - 1.5*width, df_means.loc['Walking'], width, label='Walking', color=colors[0], alpha=0.8)
-bars2 = ax.bar(x - 0.5*width, df_means.loc['Bike'], width, label='Bike/Scooter/Skateboard', color=colors[1], alpha=0.8)
-bars3 = ax.bar(x + 0.5*width, df_means.loc['Bus'], width, label='Bus/Shuttle', color=colors[2], alpha=0.8)
-bars4 = ax.bar(x + 1.5*width, df_means.loc['Car'], width, label='Private Car', color=colors[3], alpha=0.8)
+# Calculate error bars that don't go below 0
+def get_error_bars(means, stds):
+    """Calculate error bars that don't go below 0"""
+    lower_errors = np.minimum(means, stds)  # Don't go below 0
+    upper_errors = stds
+    return [lower_errors, upper_errors]
+
+# Plot bars with error bars
+bars1 = ax.bar(x - 1.5*width, df_means.loc['Walking'], width, label='Walking', color=colors[0], alpha=0.8, 
+                yerr=get_error_bars(df_means.loc['Walking'].values, df_stds.loc['Walking'].values), 
+                capsize=5, error_kw={'linewidth': 2})
+bars2 = ax.bar(x - 0.5*width, df_means.loc['Bike'], width, label='Bike/Scooter/Skateboard', color=colors[1], alpha=0.8,
+                yerr=get_error_bars(df_means.loc['Bike'].values, df_stds.loc['Bike'].values), 
+                capsize=5, error_kw={'linewidth': 2})
+bars3 = ax.bar(x + 0.5*width, df_means.loc['Bus'], width, label='Bus/Shuttle', color=colors[2], alpha=0.8,
+                yerr=get_error_bars(df_means.loc['Bus'].values, df_stds.loc['Bus'].values), 
+                capsize=5, error_kw={'linewidth': 2})
+bars4 = ax.bar(x + 1.5*width, df_means.loc['Car'], width, label='Private Car', color=colors[3], alpha=0.8,
+                yerr=get_error_bars(df_means.loc['Car'].values, df_stds.loc['Car'].values), 
+                capsize=5, error_kw={'linewidth': 2})
 
 # Customize axes
 ax.set_xlabel('Semesters', fontsize=18, fontweight='bold')
@@ -189,7 +210,7 @@ ax.legend(fontsize=16, title="Mode of Transport", title_fontsize=16, loc='upper 
 
 # Grid + Y limit
 ax.grid(axis='y', alpha=0.3, linestyle='--')
-ax.set_ylim(0, 7)  # consistent with max days/week
+ax.set_ylim(0, 8)  # Allow space for error bars
 
 # Add value labels
 def add_value_labels(bars):
@@ -206,6 +227,54 @@ for b in (bars1, bars2, bars3, bars4):
 # Save before show
 plt.tight_layout()
 plt.savefig('commuting_modes_by_semester_plot.png', dpi=300, bbox_inches='tight')
+
+# =======================
+# Save to Excel
+# =======================
+
+# Create a comprehensive Excel file with means and standard deviations
+with pd.ExcelWriter('commuting_statistics.xlsx', engine='openpyxl') as writer:
+    # Save means
+    df_means.to_excel(writer, sheet_name='Means', index=True)
+    
+    # Save standard deviations
+    df_stds.to_excel(writer, sheet_name='Standard_Deviations', index=True)
+    
+    # Create a combined sheet with both means and stds
+    combined_data = {}
+    for mode in modes:
+        combined_data[f'{mode}_Mean'] = df_means.loc[mode]
+        combined_data[f'{mode}_Std'] = df_stds.loc[mode]
+    
+    df_combined = pd.DataFrame(combined_data)
+    df_combined.to_excel(writer, sheet_name='Combined_Stats', index=True)
+    
+    # Create a detailed sheet with raw data and statistics
+    detailed_data = []
+    for mode in modes:
+        for semester in semesters:
+            raw_data = data[mode][semester]
+            mean_val = np.mean(raw_data)
+            std_val = np.std(raw_data)
+            min_val = np.min(raw_data)
+            max_val = np.max(raw_data)
+            count = len(raw_data)
+            
+            detailed_data.append({
+                'Mode': mode,
+                'Semester': semester,
+                'Count': count,
+                'Mean': mean_val,
+                'Std_Dev': std_val,
+                'Min': min_val,
+                'Max': max_val,
+                'Raw_Data': str(raw_data)
+            })
+    
+    df_detailed = pd.DataFrame(detailed_data)
+    df_detailed.to_excel(writer, sheet_name='Detailed_Statistics', index=False)
+
+
 plt.show()
 
 
@@ -353,7 +422,4 @@ plt.show()
 
 # Also save the plot
 plt.savefig('stacked_bar_male_female.png', dpi=300, bbox_inches='tight')
-
-
-
 
